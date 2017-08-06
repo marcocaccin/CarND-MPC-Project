@@ -94,7 +94,7 @@ int main() {
           double v = j[1]["speed"];
           v *= 0.447; // Convert from [miles/h] to [m/s]
           double steering_angle = j[1]["steering_angle"]; // [rad]
-          double throttle = j[1]["throttle"];
+          double throttle = j[1]["throttle"]; // is it [m/s^2]? Hope so
           // ******
 
           // Set the controller latency
@@ -133,9 +133,7 @@ int main() {
           double px_f = v * latency_s; // v*cos(psi)=v*cos(0)=v
           double py_f = 0.0; // v*sin(psi)=v*sin(0)=0
           double psi_f = - v * steering_angle / Lf * latency_s;
-          // Is throttle the acceleration in m/s^2?
-          // Not sure, let's keep speed constant then
-          double v_f = v;
+          double v_f = v + throttle * latency_s;
           double cte_f = cte + v * sin(epsi) * latency_s;
           double epsi_f = epsi + psi_f;
 
