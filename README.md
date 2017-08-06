@@ -1,8 +1,55 @@
-# CarND-Controls-MPC
-Self-Driving Car Engineer Nanodegree Program
+# Model Predictive Control (MPC)
+*Self-Driving Car Engineer Nanodegree Program*
+
+Our aim is to build a controller to drive a car in a simulation environment by following a predefined path on a global map. The actuation commands will be provided by a Model Predictive Controller (MPC). 
+
+The most interesting feature of an MPC is that can "see" in the near future within a time horizon, which means that the actuator commands of steering and throttle can be planned in advance according to the desired pathway. At each action of the MPC, the controller reads in the desired position of the car within this timeframe and finds the optimal set of future actuations so that the predicted trajectory (modelled by a kinematic model, in this case) best matches the pathway. 
 
 ---
 
+## Implementation
+#### The Model
+The model is based on the work presented in [*Kong et al., 2015*](http://www.me.berkeley.edu/~frborrel/pdfpub/IV_KinematicMPC_jason.pdf).
+We use the bycicle kinematic model to describe the motion of the car: "bycicle" because the car is modelled as if there were only one front and one back wheel placed half-width, "kinematic" because the model only takes into account kinematic quantities and is unaware of forces and inertia. 
+
+The state of a car is read from the simulator, and it is defined as `(x, y, psi, v)`, that is, x and y coordinates, heading and speed in the fixed frame of reference of a global map.
+
+A state `(x, y, psi, v)` evolves into a state `(x1, y1, psi1, v1)` after an infinitesimal time `dt` according to the update equations
+
+	x1 = x + v * cos(psi) * dt
+	y1 = x + v * cos(psi) * dt	  
+	psi1 = psi + v / Lf * delta * dt
+	v1 = v + a * dt
+`Lf` is the distance between the front wheel(s) and the center of mass of the vehicle, `a` is the acceleration measured at the initial state, and `delta` is a parameter to take into account tyre slip during steering.
+
+#### Timestep Length and Elapsed Duration
+This time horizon `T` is evenly sliced up into `N` timesteps of length `dt`. I set `dt = 100 ms` and `N = 12` upon trial and error: a time horizon of around `1 s` is appropriate to see a curve ahead with sufficient warning for a constant driving speed of around `30 m/s = 65 mph = 110 kph`.
+
+Setting these two parameters goes hand in hand with the definition of the cost function described later.
+
+#### Polynomial Fitting and MPC Preprocessing
+The MPC operates in the local coordinate system of the car (x axis is heading of car). The global waypoints read from the simulator are shifted and then rotated to be aligned with the car centre of mass and heading. Then, we fit a 3rd order polynomial to the waypoints to obtain a continuous desired trajectory in the local reference frame.
+
+#### Model Predictive Control with Latency
+The result of the fit is a desired trajectory, and we must now find the best sequence of actions to take to follow it. The action to perform *now* is going to be the first of this sequence of actions… but in the presence of latency we'd better predict what is going to be the state of the car the moment the action will be performed. To take this into account, we can simply redefine the *now* by evolving the car state by a time equal to the expected latency according to the bycicle kinematic model as coded in `main.cpp 132–140`. 
+
+The predicted future state is then sent together with the desired trajectory (actually, its fit coefficients) to MPC, which finds the optimum signals to send to throttle pedal and steering wheel. The optimisation is performed by constrained minimisation of the cost function defined in `MPC.cpp 40–56`, which is the sum of different contributions (in order):
+
+- cross-track error
+- heading error
+- speed error
+- a regularisation term that minimises the steering and throttle
+- two smoothing terms that prevent sudden jumps in steering angles and throttle from one timestep to the next
+ 
+To obtain a meaningful control of the car, these contributions to the total cost must be appropriately weighted by multiplication parameters, which have been chosen by a mix of physical considerations (e.g., adjust a jerky driving behaviour by increasing the steering angle smoothing coefficient) and trial and error.
+
+## Simulation
+The vehicle can drive a lap around the track at a constant speed of `30 m/s`. It shows some proneness to oscillate around the desired trajectory, which translates into crashing on the curb at higher speeds. 70mph is not too bad though, and certainly on par if not better than any other controller used until now in this term :) 
+
+To improve the current model I can think of making the desired speed a function of the steering angle (even better, the predicted steering angle at some point in the future), so that the car can go full throttle on a straight line and approach curves at safe speeds
+
+---
+---
 ## Dependencies
 
 * cmake >= 3.5
