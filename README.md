@@ -23,9 +23,12 @@ A state `(x, y, psi, v)` evolves into a state `(x1, y1, psi1, v1)` after an infi
 `Lf` is the distance between the front wheel(s) and the center of mass of the vehicle, `a` is the acceleration measured at the initial state, and `delta` is a parameter to take into account tyre slip during steering.
 
 #### Timestep Length and Elapsed Duration
-This time horizon `T` is evenly sliced up into `N` timesteps of length `dt`. I set `dt = 100 ms` and `N = 12` upon trial and error: a time horizon of around `1 s` is appropriate to see a curve ahead with sufficient warning for a constant driving speed of around `30 m/s = 65 mph = 110 kph`.
+This time horizon `T` is evenly sliced up into `N` timesteps of length `dt` so that `T = N * dt`. The value of `T` controls how much in the future the MPC can "see": the smaller the value, the more short-sighted the controller will be, and can lead to unstable driving behaviour. For a given time horizon `T`, using smaller `dt` results in having a finer resolution and hence a more precise solution of the MPC optimisation. 
+While small values of `dt` and large values of `T` would sound ideal, both come at an extra computational cost that must be justified. Furthermore, the polynomial fit on the pathway may become unstable for large `T` because the 3rd order approximation may not hold any longer.
 
-Setting these two parameters goes hand in hand with the definition of the cost function described later.
+I set `dt = 100 ms` and `N = 12` upon trial and error: a time horizon of around `1 s` is appropriate to see a curve ahead with sufficient warning for a target speed of around `30 m/s = 65 mph = 110 kph`.
+
+Note that setting these two parameters goes hand in hand with the definition of the cost function described later.
 
 #### Polynomial Fitting and MPC Preprocessing
 The MPC operates in the local coordinate system of the car (x axis is heading of car). The global waypoints read from the simulator are shifted and then rotated to be aligned with the car centre of mass and heading. Then, we fit a 3rd order polynomial to the waypoints to obtain a continuous desired trajectory in the local reference frame.
@@ -44,7 +47,7 @@ The predicted future state is then sent together with the desired trajectory (ac
 To obtain a meaningful control of the car, these contributions to the total cost must be appropriately weighted by multiplication parameters, which have been chosen by a mix of physical considerations (e.g., adjust a jerky driving behaviour by increasing the steering angle smoothing coefficient) and trial and error.
 
 ## Simulation
-The vehicle can drive a lap around the track at a constant speed of `30 m/s`. It shows some proneness to oscillate around the desired trajectory, which translates into crashing on the curb at higher speeds. 70mph is not too bad though, and certainly on par if not better than any other controller used until now in this term :) 
+The vehicle can drive a lap around the track at a constant speed of about `55 mph`. It shows some proneness to oscillate around the desired trajectory, which translates into crashing on the curb at higher speeds.
 
 To improve the current model I can think of making the desired speed a function of the steering angle (even better, the predicted steering angle at some point in the future), so that the car can go full throttle on a straight line and approach curves at safe speeds
 
